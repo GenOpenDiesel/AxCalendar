@@ -25,6 +25,7 @@ import com.artillexstudios.axcalendar.hooks.PlaceholderAPIParser;
 import com.artillexstudios.axcalendar.hooks.Placeholders;
 import com.artillexstudios.axcalendar.libraries.Libraries;
 import com.artillexstudios.axcalendar.utils.CalendarUtils;
+import com.artillexstudios.axcalendar.utils.RequirementUtils;
 import com.artillexstudios.axcalendar.utils.UpdateNotifier;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bstats.bukkit.Metrics;
@@ -110,6 +111,9 @@ public final class AxCalendar extends AxPlugin {
         } else {
             placeholderParser = new Placeholders() {};
         }
+
+        Bukkit.getPluginManager().registerEvents(new RequirementUtils(), this);
+        RequirementUtils.setup();
 
         GuiUpdater.start();
 
