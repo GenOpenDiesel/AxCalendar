@@ -5,6 +5,7 @@ import com.artillexstudios.axcalendar.AxCalendar;
 import com.artillexstudios.axcalendar.commands.subcommands.Open;
 import com.artillexstudios.axcalendar.commands.subcommands.Reload;
 import com.artillexstudios.axcalendar.commands.subcommands.Reset;
+import com.artillexstudios.axcalendar.commands.subcommands.ResetDaily;
 import com.artillexstudios.axcalendar.utils.CalendarUtils;
 import com.artillexstudios.axcalendar.utils.CommandMessages;
 import org.bukkit.OfflinePlayer;
@@ -47,6 +48,12 @@ public class Commands implements OrphanCommand {
     @CommandPermission("axcalendar.admin")
     public void reset(@NotNull CommandSender sender, OfflinePlayer player) {
         Reset.INSTANCE.execute(sender, player);
+    }
+
+    @Subcommand("resetdaily")
+    @CommandPermission("axcalendar.admin")
+    public void resetDaily(@NotNull CommandSender sender) {
+        ResetDaily.INSTANCE.execute(sender);
     }
 
     @Subcommand("debuginfo")
