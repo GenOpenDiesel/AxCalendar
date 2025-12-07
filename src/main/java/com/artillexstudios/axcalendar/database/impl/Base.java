@@ -40,6 +40,10 @@ public abstract class Base implements Database {
             DELETE FROM axcalendar_data WHERE `uuid` = ?;
     """;
 
+    private final String RESET_DAY = """
+            DELETE FROM axcalendar_data WHERE `day` = ?;
+    """;
+
     public abstract Connection getConnection();
 
     @Override
@@ -95,6 +99,15 @@ public abstract class Base implements Database {
     public void reset(@NotNull OfflinePlayer player) {
         try (Connection conn = getConnection()) {
             runner.execute(conn, DELETE_USER, player.getUniqueId().toString());
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public void resetDay(int day) {
+        try (Connection conn = getConnection()) {
+            runner.execute(conn, RESET_DAY, day);
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
