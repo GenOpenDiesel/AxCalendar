@@ -85,6 +85,32 @@ public class CalendarGui extends GuiFrame {
                         GuiItem guiItem = new GuiItem(ItemBuilderUtil.parse(day.claimable().clone(), rp));
                         guiItem.setAction(event -> AxCalendar.getThreadedQueue().submit(() -> {
                             if (getClaimStatus(day) != ClaimStatus.CLAIMABLE) return;
+
+                            // --- MODYFIKACJA START: Sprawdzenie dla 25 dnia (Bonus) ---
+                            if (day.day() == 25) {
+                                int claimedCount = 0;
+                                int daysToCheck = 0;
+
+                                // Sprawdzamy wszystkie dni przed dniem 25 (czyli 1-24)
+                                for (Day d : MenuManager.getDays().values()) {
+                                    if (d.day() < 25) {
+                                        daysToCheck++;
+                                        if (AxCalendar.getDatabase().isClaimed(player, d)) {
+                                            claimedCount++;
+                                        }
+                                    }
+                                }
+
+                                // Pozwalamy na brak max 1 dnia (np. odebrane 23 z 24 dni)
+                                if (claimedCount < (daysToCheck - 1)) {
+                                    // Możesz tu wpisać własną wiadomość lub dodać ją do lang.yml
+                                    MESSAGEUTILS.sendFormatted(player, "&cMusisz odebrać prawie wszystkie nagrody (min. " + (daysToCheck - 1) + "), aby otworzyć ten prezent!");
+                                    SoundUtils.playSound(player, CONFIG.getString("sounds.failed"));
+                                    return;
+                                }
+                            }
+                            // --- MODYFIKACJA END ---
+
                             int maxIP = CONFIG.getInt("max-accounts-per-ip", 3);
                             if (maxIP != -1 && maxIP <= AxCalendar.getDatabase().countIps(player, day)) {
                                 MESSAGEUTILS.sendLang(player, "error.too-many-ips", rp);
@@ -121,15 +147,7 @@ public class CalendarGui extends GuiFrame {
                     case UNCLAIMABLE -> {
                         GuiItem guiItem = new GuiItem(ItemBuilderUtil.parse(day.unclaimable().clone(), rp));
                         guiItem.setAction(event -> {
-                            // --- MODYFIKACJA START: Komunikat dla nagrody za wszystkie dni (25) ---
-                            // Jeśli to dzień 25 i jest już 24 grudnia (lub później), ale status jest UNCLAIMABLE,
-                            // to znaczy, że gracz nie odebrał poprzednich nagród.
-                            if (day.day() == 25 && CalendarUtils.getDayOfMonth() >= 24) {
-                                MESSAGEUTILS.sendFormatted(player, CONFIG.getString("prefix") + "&#FF3333Musisz odebrać wszystkie prezenty z dni 1-24, aby otworzyć ten prezent!");
-                            } else {
-                                MESSAGEUTILS.sendLang(player, "error.too-early", rp);
-                            }
-                            // --- MODYFIKACJA KONIEC ---
+                            MESSAGEUTILS.sendLang(player, "error.too-early", rp);
                             SoundUtils.playSound(player, CONFIG.getString("sounds.failed"));
                         });
                         gui.setItem(day.slot(), guiItem);
@@ -168,41 +186,9 @@ public class CalendarGui extends GuiFrame {
     public ClaimStatus getClaimStatus(Day day) {
         if (AxCalendar.getDatabase().isClaimed(player, day)) return ClaimStatus.CLAIMED;
         if (!CalendarUtils.isSameMonth()) return ClaimStatus.UNCLAIMABLE;
-        
-        int currentDay = CalendarUtils.getDayOfMonth();
-        
-        // --- MODYFIKACJA START: Wyjątek dla 21 dnia dostępnego 22 grudnia ---
-        // Pozwala odebrać dzień 21. w dniu 22., niezależnie od innych ustawień.
-        if (day.day() == 21 && currentDay == 22) {
-            return ClaimStatus.CLAIMABLE;
-        }
-        // --- MODYFIKACJA KONIEC ---
-
-        // --- MODYFIKACJA START: Logika nagrody za wszystkie dni (Dzień 25) ---
-        // Jeśli jest to dzień 25 (nagroda główna), sprawdzamy czy jest już 24 grudnia.
-        if (day.day() == 25) {
-            if (currentDay >= 24) {
-                // Sprawdzamy czy odebrano wszystkie dni od 1 do 24
-                boolean allPreviousClaimed = true;
-                for (int i = 1; i <= 24; i++) {
-                    Day checkDay = MenuManager.getDays().get(i);
-                    if (checkDay != null && !AxCalendar.getDatabase().isClaimed(player, checkDay)) {
-                        allPreviousClaimed = false;
-                        break;
-                    }
-                }
-                // Jeśli wszystko odebrane -> CLAIMABLE, w przeciwnym razie UNCLAIMABLE (zablokowane)
-                return allPreviousClaimed ? ClaimStatus.CLAIMABLE : ClaimStatus.UNCLAIMABLE;
-            }
-            return ClaimStatus.UNCLAIMABLE;
-        }
-        // --- MODYFIKACJA KONIEC ---
-
-        if (currentDay == day.day()) return ClaimStatus.CLAIMABLE;
-        
+        if (CalendarUtils.getDayOfMonth() == day.day()) return ClaimStatus.CLAIMABLE;
         boolean lateClaiming = CONFIG.getBoolean("allow-late-claiming", true);
-        if (currentDay > day.day()) return lateClaiming ? ClaimStatus.CLAIMABLE : ClaimStatus.EXPIRED;
-        
+        if (CalendarUtils.getDayOfMonth() > day.day()) return lateClaiming ? ClaimStatus.CLAIMABLE : ClaimStatus.EXPIRED;
         return ClaimStatus.UNCLAIMABLE;
     }
 
