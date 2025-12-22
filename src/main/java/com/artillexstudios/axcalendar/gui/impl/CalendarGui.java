@@ -104,7 +104,7 @@ public class CalendarGui extends GuiFrame {
                                 // Pozwalamy na brak max 1 dnia (np. odebrane 23 z 24 dni)
                                 if (claimedCount < (daysToCheck - 1)) {
                                     // Możesz tu wpisać własną wiadomość lub dodać ją do lang.yml
-                                    MESSAGEUTILS.sendFormatted(player, "&cMusisz odebrać prawie wszystkie nagrody (min. " + (daysToCheck - 1) + "), aby otworzyć ten prezent!");
+                                    MESSAGEUTILS.sendFormatted(player, "&cMusisz odebrać wszystkie nagrody od dnia 1 do 24 aby otworzyć ten prezent!");
                                     SoundUtils.playSound(player, CONFIG.getString("sounds.failed"));
                                     return;
                                 }
