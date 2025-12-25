@@ -21,6 +21,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +41,8 @@ import static com.artillexstudios.axcalendar.AxCalendar.MESSAGEUTILS;
 
 public class CalendarGui extends GuiFrame {
     private static final Set<CalendarGui> openMenus = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+    // Obiekt do synchronizacji zapisu plików, aby uniknąć błędów przy wielu graczach naraz
+    private static final Object LOCK = new Object();
 
     private final Gui gui;
 
@@ -84,27 +92,39 @@ public class CalendarGui extends GuiFrame {
                     case CLAIMABLE -> {
                         GuiItem guiItem = new GuiItem(ItemBuilderUtil.parse(day.claimable().clone(), rp));
                         guiItem.setAction(event -> AxCalendar.getThreadedQueue().submit(() -> {
+                            // 1. Podstawowe zabezpieczenie asynchroniczne (sprawdza czy nagroda nadal jest dostępna)
                             if (getClaimStatus(day) != ClaimStatus.CLAIMABLE) return;
 
-                            // --- MODYFIKACJA START: Sprawdzenie dla 25 dnia (Bonus) ---
+                            // --- MODYFIKACJA START: Logika dla 25 dnia (Bonus) ---
                             if (day.day() == 25) {
+                                int currentDay = CalendarUtils.getDayOfMonth();
+
+                                // Zabezpieczenie czasowe: Nagrodę można odebrać do 30 grudnia włącznie.
+                                // (Czyli dni 25, 26, 27, 28, 29, 30 są dozwolone).
+                                if (currentDay > 30) {
+                                    MESSAGEUTILS.sendFormatted(player, "&cTen prezent wygasł! Był dostępny tylko do 30 grudnia.");
+                                    SoundUtils.playSound(player, CONFIG.getString("sounds.failed"));
+                                    return;
+                                }
+
                                 int claimedCount = 0;
                                 int daysToCheck = 0;
 
-                                // Sprawdzamy wszystkie dni przed dniem 25 (czyli 1-24)
+                                // Zliczamy odebrane nagrody z dni 1-24
                                 for (Day d : MenuManager.getDays().values()) {
                                     if (d.day() < 25) {
                                         daysToCheck++;
+                                        // Sprawdzenie w bazie danych
                                         if (AxCalendar.getDatabase().isClaimed(player, d)) {
                                             claimedCount++;
                                         }
                                     }
                                 }
 
-                                // Pozwalamy na brak max 1 dnia (np. odebrane 23 z 24 dni)
-                                if (claimedCount < (daysToCheck - 1)) {
-                                    // Możesz tu wpisać własną wiadomość lub dodać ją do lang.yml
-                                    MESSAGEUTILS.sendFormatted(player, "&cMusisz odebrać wszystkie nagrody od dnia 1 do 24 aby otworzyć ten prezent!");
+                                // Logika tolerancji: Pozwalamy "zapomnieć" o maksymalnie 2 dniach.
+                                // Jeśli dni do sprawdzenia jest 24, gracz musi mieć odebrane co najmniej 22 (24 - 2).
+                                if (claimedCount < (daysToCheck - 2)) {
+                                    MESSAGEUTILS.sendFormatted(player, "&cMusisz odebrać nagrody z co najmniej " + (daysToCheck - 2) + " dni (1-24), aby otworzyć ten prezent!");
                                     SoundUtils.playSound(player, CONFIG.getString("sounds.failed"));
                                     return;
                                 }
@@ -124,7 +144,13 @@ public class CalendarGui extends GuiFrame {
                                 return;
                             }
 
+                            // Zapis statusu odebrania w bazie danych
                             AxCalendar.getDatabase().claim(player, day);
+
+                            // --- LOGOWANIE DO PLIKU START ---
+                            logClaimToFile(player, day.day());
+                            // --- LOGOWANIE DO PLIKU END ---
+
                             Scheduler.get().run(scheduledTask -> {
                                 SoundUtils.playSound(player, CONFIG.getString("sounds.claimed"));
                                 for (Reward reward : day.rewards()) {
@@ -198,5 +224,29 @@ public class CalendarGui extends GuiFrame {
 
     public Player getPlayer() {
         return player;
+    }
+
+    // Funkcja zapisująca logi do pliku claims.log
+    private void logClaimToFile(Player player, int day) {
+        synchronized (LOCK) {
+            File dataFolder = AxCalendar.getInstance().getDataFolder();
+            File logsFile = new File(dataFolder, "claims.log");
+
+            try {
+                if (!logsFile.exists()) {
+                    logsFile.createNewFile();
+                }
+
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(logsFile, true))) {
+                    String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
+                    String logEntry = String.format("[%s] Gracz %s odebrał nagrodę za dzień %d", time, player.getName(), day);
+                    writer.write(logEntry);
+                    writer.newLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                Bukkit.getLogger().warning("[AxCalendar] Nie udało się zapisać logu odbioru nagrody!");
+            }
+        }
     }
 }
