@@ -96,17 +96,8 @@ public class CalendarGui extends GuiFrame {
                             if (getClaimStatus(day) != ClaimStatus.CLAIMABLE) return;
 
                             // --- MODYFIKACJA START: Logika dla 25 dnia (Bonus) ---
+// --- MODYFIKACJA START: Logika dla 25 dnia (Bonus) ---
                             if (day.day() == 25) {
-                                int currentDay = CalendarUtils.getDayOfMonth();
-
-                                // Zabezpieczenie czasowe: Nagrodę można odebrać do 30 grudnia włącznie.
-                                // (Czyli dni 25, 26, 27, 28, 29, 30 są dozwolone).
-                                if (currentDay > 30) {
-                                    MESSAGEUTILS.sendFormatted(player, "&cTen prezent wygasł! Był dostępny tylko do 30 grudnia.");
-                                    SoundUtils.playSound(player, CONFIG.getString("sounds.failed"));
-                                    return;
-                                }
-
                                 int claimedCount = 0;
                                 int daysToCheck = 0;
 
@@ -129,6 +120,7 @@ public class CalendarGui extends GuiFrame {
                                     return;
                                 }
                             }
+                            // --- MODYFIKACJA END ---
                             // --- MODYFIKACJA END ---
 
                             int maxIP = CONFIG.getInt("max-accounts-per-ip", 3);
