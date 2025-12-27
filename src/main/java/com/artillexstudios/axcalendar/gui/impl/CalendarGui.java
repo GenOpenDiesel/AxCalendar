@@ -201,9 +201,17 @@ public class CalendarGui extends GuiFrame {
         });
     }
 
-    public ClaimStatus getClaimStatus(Day day) {
+public ClaimStatus getClaimStatus(Day day) {
         if (AxCalendar.getDatabase().isClaimed(player, day)) return ClaimStatus.CLAIMED;
         if (!CalendarUtils.isSameMonth()) return ClaimStatus.UNCLAIMABLE;
+        
+        // Specjalna logika dla dnia 25 - dostępny od 25 do końca miesiąca
+        if (day.day() == 25) {
+            int currentDay = CalendarUtils.getDayOfMonth();
+            if (currentDay >= 25) return ClaimStatus.CLAIMABLE;
+            return ClaimStatus.UNCLAIMABLE;
+        }
+        
         if (CalendarUtils.getDayOfMonth() == day.day()) return ClaimStatus.CLAIMABLE;
         boolean lateClaiming = CONFIG.getBoolean("allow-late-claiming", true);
         if (CalendarUtils.getDayOfMonth() > day.day()) return lateClaiming ? ClaimStatus.CLAIMABLE : ClaimStatus.EXPIRED;
